@@ -118,6 +118,31 @@ The NCN Program is the core on-chain component of the system. It's the smart con
 2. Maintaining the registry of participating vaults and supported token types.
 3. Managing the state for each voting epoch (consensus cycle).
 
+### NCN Lifecycle
+
+The Node Consensus Network operates in a well-defined lifecycle that consists of three main phases:
+
+1. **Initial Setup (One-time)**: This phase involves establishing the foundational infrastructure of the NCN. It includes:
+
+   - Configuring the NCN parameters
+   - Initializing the vault registry
+   - Registering supported token types and assigning weights
+
+     The initial setup is performed only once when the NCN is first deployed, with occasional administrative updates as needed (such as adjusting token weights or adding new supported tokens).
+
+2. **Snapshotting (Recurring)**: At the beginning of each consensus cycle (epoch), the system captures the current state of all participants:
+
+   - Creating epoch state and weight tables
+   - Taking snapshots of operator stake weights
+   - Recording vault-operator delegations
+   - Calculating total voting power distribution
+
+     This phase ensures that voting is based on a consistent, point-in-time view of the network, preventing manipulation during the voting process.
+
+3. **Voting (Recurring)**: After snapshotting is complete, operators can cast their votes:
+   - Operators submit their choices (e.g., weather status)
+   - Votes are weighted according to the operator's stake
+
 ## Get to know the NCN program template
 
 Our example NCN Program facilitates consensus on a simple "weather status" using a stake-weighted voting mechanism. It operates in distinct time periods called epochs (your NCN's epochs do not have to be equivalent to a Solana epoch). The program uses a weight-based system to determine the influence (voting power) of different operators. Consensus is achieved when votes representing at least 66% of the total participating stake weight agree on the same outcome (ballot).
@@ -145,7 +170,6 @@ The program uses several types of accounts:
     - **[`VaultOperatorStakeWeight`](#vaultoperatorstakeweight)**: Tracks the weighted stake from a specific vault to an operator.
     - **[`StMintEntry`](#stmintentry)**: Represents a supported token mint and its voting weight in the VaultRegistry.
     - **[`VaultEntry`](#vaultentry)**: Represents a registered vault in the VaultRegistry.
-
 
 ### Weather status system
 
@@ -206,7 +230,7 @@ This section will walk through building a simulation test of our example NCN pro
 
 The NCN program used can be found [here](https://github.com/Unboxed-Software/ncn-program-template). By creating a simulation test of this NCN, you'll be better prepared to use it as a template or base that you can adapt to create your own NCN program. Just a reminder: we do not recommend most NCN developers build their NCN from scratch. Rather, we suggest using this prebuilt program as a starting point and customizing it according to your needs.
 
-The simulation test we'll be creating below can also be found in the [example NCN repository](https://github.com/Unboxed-Software/ncn-program-template). However, you'll understand the system better if you write the test along with us, so feel free to clone the repository, delete the test, and follow along. This will give you hands-on experience with the entire NCN lifecycle: initializing vaults and operators using Jito's restaking and vault programs, configuring the NCN program, and executing the full voting process.
+The simulation test we'll be creating below can also be found in the [example NCN repository](https://github.com/Unboxed-Software/ncn-program-template). However, you'll understand the system better if you write the test along with us, so feel free to clone the repository, delete the test file `./integration_tests/test/ncn_program/simulation_test.rs`, and follow along. This will give you hands-on experience with the entire NCN lifecycle: initializing vaults and operators using Jito's restaking and vault programs, configuring the NCN program, and executing the full voting process.
 
 ### Prerequisites
 
@@ -223,7 +247,7 @@ Let's build the simulation test step by step.
 
 #### 1. Create a new file
 
-You can start with a blank file. Create a new file named `simulation_test_new.rs` inside the `integration_tests/tests` folder. Paste the following boilerplate code into it:
+You can start with a blank file. Create a new file named `simulation_test.rs` inside the `integration_tests/tests` folder. Copy and paste the following boilerplate code at the bottom of your test function:
 
 ```rust
 #[cfg(test)]
@@ -234,7 +258,7 @@ mod tests {
     use solana_sdk::{msg, signature::Keypair, signer::Signer};
 
     #[tokio::test]
-    async fn simulation_test_new() -> TestResult<()> {
+    async fn simulation_test() -> TestResult<()> {
         // YOUR TEST CODE WILL GO HERE
         // 2. ENVIRONMENT SETUP
 
@@ -257,29 +281,28 @@ mod tests {
 }
 ```
 
-Unless otherwise specified, all of the code snippets provided in this guide represent code that should go inside the `simulation_test_new` test function, in the order provided.
+Unless otherwise specified, all of the code snippets provided in this guide represent code that should go inside the `simulation_test` test function, in the order provided.
 
 Next, you need to make this new test discoverable. Copy and paste the following line into the `integration_tests/tests/mod.rs` file to declare the new module:
 
 ```rust
 // integration_tests/tests/mod.rs
-mod simulation_test_new;
+mod simulation_test;
 ```
 
 Now, you can run this specific test using the following command:
 
 ```bash
-SBF_OUT_DIR=integration_tests/tests/fixtures cargo test -p ncn-program-integration-tests --test tests simulation_test_new
+SBF_OUT_DIR=integration_tests/tests/fixtures cargo test -p ncn-program-integration-tests --test tests simulation_test
 ```
 
-TODO:- @mohammed do you think we should rename the simulation test to just be `simulation_test` rather than `simulation_test_new`?
-This command targets the `ncn-program-integration-tests` package and runs only the `simulation_test_new` test function. If you want to run all tests in the suite, simply remove the test name filter (`simulation_test_new`) from the command.
+This command targets the `ncn-program-integration-tests` package and runs only the `simulation_test` test function. If you want to run all tests in the suite, simply remove the test name filter (`-p ncn-program-integration-tests --test tests simulation_test`) from the command.
 
 Currently, the test will pass because it doesn't contain any logic yet. You should see output similar to this:
 
 ```bash
 running 1 test
-test ncn_program::simulation_test_new::tests::simulation_test_new ... ok
+test ncn_program::simulation_test::tests::simulation_test ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.00s
 ```
@@ -358,7 +381,7 @@ This step:
 - Calls the Jito Restaking program to create a new Node Consensus Network (NCN) account and its associated administrative structures.
 - Stores the public key (`ncn_pubkey`) of the newly created NCN, which we'll need to interact with it later.
 
-If you run the test at this point (`cargo test ... simulation_test_new`), you should see transaction logs in the output, indicating that the NCN creation instructions were executed successfully.
+If you run the test at this point (`cargo test ... simulation_test`), you should see transaction logs in the output, indicating that the NCN creation instructions were executed successfully.
 
 #### 4. Operators and Vaults Setup
 
@@ -388,6 +411,8 @@ The handshake process involves multiple steps:
 2.  Initializing the state that tracks the relationship between the NCN and the operator (`do_initialize_ncn_operator_state`).
 3.  Warming up the connection from the NCN's perspective (`do_ncn_warmup_operator`).
 4.  Warming up the connection from the operator's perspective (`do_operator_warmup_ncn`).
+
+TODO: link the conceptual guide here for ticket explanation
 
 This handshake is essential for security. It ensures that operators must explicitly connect to the NCN (and vice-versa) and potentially wait through an activation period before they can participate in voting.
 
@@ -528,7 +553,6 @@ The deliberate omission of delegation to the last operator creates a control cas
 
 You can run the test now and see the output.
 
-
 #### 5. NCN Program Configuration
 
 Until now, all the code we've written uses the Jito restaking program and Jito vault program. Now we will start using the example NCN program that you will have to deploy.
@@ -561,7 +585,7 @@ Under the hood, this creates an `NcnConfig` account that stores these parameters
 
 The vault registry account is a large one, so it is not possible to initialize it in one call due to Solana network limitations. We will have to call the NCN program multiple times to get to the full size. The first call will be an init call to the instruction `admin_initialize_vault_registry`. After that, we will call a realloc instruction `admin_realloc_vault_registry` to increase the size of the account. This will be done in a loop until the account is the correct size.
 
-The realloc will take care of assigning the default values to the vault registry account once the desirable size is reached. In our example, we will do that by calling one function `do_full_initialize_vault_registry`. If you want to learn more about this, you can check the [API docs](TODO: link) or the [source code](https://github.com/Unboxed-Software/ncn-program-template).
+The realloc will take care of assigning the default values to the vault registry account once the desirable size is reached. In our example, we will do that by calling one function `do_full_initialize_vault_registry`. If you want to learn more about this, you can check the [source code](https://github.com/Unboxed-Software/ncn-program-template).
 
 Copy and paste the following code at the bottom of your test function:
 
@@ -584,6 +608,8 @@ Note that this is only initializing the vault registry. The vaults and the suppo
 Check out the vault registry struct [here](#vaultregistry)
 
 ##### 5.3 Activating Relationships with Time Advancement
+
+Next, we advance the simulation clock to ensure that all previously established handshake relationships (NCN-Operator, NCN-Vault, Operator-Vault) become active, as Jito's restaking infrastructure often includes activation periods.
 
 Copy and paste the following code at the bottom of your test function:
 
@@ -609,8 +635,6 @@ This section:
 3. Ensures all handshake relationships between NCN, operators, and vaults become active
 
 The time advancement is necessary because Jito's restaking infrastructure uses an activation period for security. This prevents malicious actors from quickly creating and voting with fake operators or vaults by enforcing a waiting period before they can participate.
-
-#### 5.4 Token Registration and Weight Assignment
 
 Now it is time to register the supported tokens with the NCN program and assign weights to each mint for voting power calculations.
 
@@ -671,6 +695,7 @@ This registration process establishes the complete set of vaults that can contri
 ##### 5.6 NCN Architecture and Security Considerations
 
 ##### 5.5 Architecture Considerations
+
 The NCN program configuration establishes a multi-layered security model:
 
 1.  **Authentication Layer**: Only the NCN admin can initialize configuration and register tokens
@@ -690,6 +715,9 @@ The upcoming section is a keeper task (with the exception of the voting). This m
 
 ##### 6.1 Epoch State Initialization
 
+To begin a new consensus cycle (epoch), we first initialize an `EpochState` account for our NCN, which will track the progress of this epoch.
+
+Copy and paste the following code at the bottom of your test function:
 
 ```rust
         // Initialize the epoch state for the current epoch
@@ -697,17 +725,20 @@ The upcoming section is a keeper task (with the exception of the voting). This m
 ```
 
 This step initializes the **Epoch State** for the current consensus cycle:
-*   It creates an `EpochState` account tied to the specific NCN and epoch.
-*   This account tracks the progress through each stage of the consensus cycle.
-*   It maintains flags for each phase (weight setting, snapshot taking, voting, closing).
-*   The epoch state provides protection against out-of-sequence operations.
-*   It stores metadata like the current epoch, slot information, and participant counts.
+
+- It creates an `EpochState` account tied to the specific NCN and epoch.
+- This account tracks the progress through each stage of the consensus cycle.
+- It maintains flags for each phase (weight setting, snapshot taking, voting, closing).
+- The epoch state provides protection against out-of-sequence operations.
+- It stores metadata like the current epoch, slot information, and participant counts.
 
 Once initialized, the `EpochState` account becomes the authoritative record of where the system is in the voting process, preventing operations from happening out of order or in duplicate.
 
 You can take a look at the epoch state struct [here](#epochaccountstatus).
 
 ##### 6.2 Weight Table Initialization and Population
+
+For the current epoch, we initialize a `WeightTable` and populate it by copying the token weights from the `VaultRegistry`, effectively freezing these weights for the duration of this consensus cycle.
 
 Copy and paste the following code at the bottom of your test function:
 
@@ -750,6 +781,8 @@ This two-step process is critical for the integrity of the system as it:
 
 ##### 6.3 Epoch Snapshot Creation
 
+We then create an `EpochSnapshot` account to record the overall state for this epoch, such as total operator and vault counts, and to accumulate total stake weight.
+
 Copy and paste the following code at the bottom of your test function:
 
 ```rust
@@ -767,13 +800,49 @@ The epoch snapshot captures the aggregate state of the entire system:
 
 ##### 6.4 Operator Snapshots
 
+Next, individual `OperatorSnapshot` accounts are created for each participating operator, capturing their state and expected delegations for the epoch.
+
 Copy and paste the following code at the bottom of your test function:
 
 ```rust
-        // Take snapshots for all operators
-        fixture
-            .add_operator_snapshots_to_test_ncn(&test_ncn)
+// 2.b. Initialize the operators using the Jito Restaking program, and initiate the
+//   handshake relationship between the NCN <> operators
+{
+    for _ in 0..OPERATOR_COUNT {
+        // Set operator fee to 100 basis points (1%)
+        let operator_fees_bps: Option<u16> = Some(100);
+
+        // Initialize a new operator account with the specified fee
+        let operator_root = restaking_client
+            .do_initialize_operator(operator_fees_bps)
             .await?;
+
+        // Establish bidirectional handshake between NCN and operator:
+        // 1. Initialize the NCN's state tracking (the NCN operator ticket) for this operator
+        restaking_client
+            .do_initialize_ncn_operator_state(
+                &test_ncn.ncn_root,
+                &operator_root.operator_pubkey,
+            )
+            .await?;
+
+        // 2. Advance slot to satisfy timing requirements
+        fixture.warp_slot_incremental(1).await.unwrap();
+
+        // 3. NCN warms up to operator - creates NCN's half of the handshake
+        restaking_client
+            .do_ncn_warmup_operator(&test_ncn.ncn_root, &operator_root.operator_pubkey)
+            .await?;
+
+        // 4. Operator warms up to NCN - completes operator's half of the handshake
+        restaking_client
+            .do_operator_warmup_ncn(&operator_root, &test_ncn.ncn_root.ncn_pubkey)
+            .await?;
+
+        // Add the initialized operator to our test NCN's operator list
+        test_ncn.operators.push(operator_root);
+    }
+}
 ```
 
 This step creates an individual snapshot for each operator in the system:
@@ -787,6 +856,10 @@ This step creates an individual snapshot for each operator in the system:
 These snapshots establish each operator's baseline for the current epoch. The actual voting power will be populated in the next step based on individual delegations. This ensures that later delegation changes cannot alter voting weight once the snapshot phase is complete.
 
 ##### 6.5 Vault-Operator Delegation Snapshots
+
+With operator snapshots ready, we now record the weighted stake from each specific vault-to-operator delegation into the relevant `OperatorSnapshot` and update the total stake in the `EpochSnapshot`.
+
+Copy and paste the following code at the bottom of your test function:
 
 ```rust
         // Record all vault-to-operator delegations
@@ -814,6 +887,8 @@ These granular snapshots serve multiple purposes:
 - They prevent retroactive manipulation of the voting power distribution.
 
 ##### 6.6 Ballot Box Initialization
+
+To prepare for voting, we initialize a `BallotBox` account for the current epoch, which will collect and tally all operator votes.
 
 Copy and paste the following code at the bottom of your test function:
 
@@ -864,6 +939,8 @@ The Voting Process is the core functionality of the NCN system, where operators 
 
 ##### 7.1 Setting the Expected Outcome
 
+In our simulation, we'll predefine an expected winning outcome for verification purposes.
+
 Copy and paste the following code at the bottom of your test function:
 
 ```rust
@@ -874,6 +951,8 @@ Copy and paste the following code at the bottom of your test function:
 For testing purposes, the system defines an expected outcome (`WeatherStatus::Sunny`). In a production environment, the winning outcome would be determined organically through actual operator votes based on real-world data or criteria. The weather status enum (`Sunny`, `Cloudy`, `Rainy`) serves as a simplified proxy for any on-chain decision that requires consensus.
 
 ##### 7.2 Casting Votes from Different Operators
+
+Operators now cast their votes. We'll simulate a few operators voting, some for the expected outcome and some against, to test the tallying logic.
 
 Copy and paste the following code at the bottom of your test function:
 
@@ -945,6 +1024,8 @@ Under the hood, each vote triggers several key operations within the `cast_vote`
 
 ##### 7.3 Establishing Consensus Through Majority Voting
 
+To ensure consensus is reached for our test, the remaining eligible operators will now vote for the predefined winning weather status.
+
 Copy and paste the following code at the bottom of your test function:
 
 ```rust
@@ -962,8 +1043,6 @@ Copy and paste the following code at the bottom of your test function:
         }
     }
 ```
-
-To establish a clear consensus in the test, the remaining eligible operators (excluding the first three and the one with zero delegation) all vote for the "Sunny" option. This accumulation of stake weight behind "Sunny" surpasses the required threshold.
 
 The consensus mechanism works as follows:
 
@@ -1032,6 +1111,8 @@ The Verification phase validates that the voting process completed successfully 
 
 ##### 8.1 Ballot Box Verification
 
+After voting concludes, we first verify the `BallotBox` to ensure it correctly reflects that consensus was reached and identifies the expected winning ballot.
+
 Copy and paste the following code at the bottom of your test function:
 
 ```rust
@@ -1064,6 +1145,8 @@ The first verification step examines the `BallotBox` account for the completed e
 Verifying the `BallotBox` ensures the core voting and tallying mechanism functioned correctly during the active epoch.
 
 ##### 8.2 Consensus Result Account Verification
+
+Next, we verify the permanently stored `ConsensusResult` account to confirm it accurately records the winning outcome, epoch details, and vote weights, consistent with the `BallotBox`.
 
 Copy and paste the following code at the bottom of your test function:
 
