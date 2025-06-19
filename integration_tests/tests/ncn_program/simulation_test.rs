@@ -284,7 +284,20 @@ mod tests {
             );
         }
 
-        // 7. Fetch and verify the consensus_result account
+        // 7. Reward Distribution
+        {
+            const REWARD_AMOUNT: u64 = 1_000_000;
+            fixture.add_routers_for_test_ncn(&test_ncn).await?;
+            fixture
+                .route_in_ncn_rewards_for_test_ncn(&test_ncn, REWARD_AMOUNT)
+                .await?;
+
+            fixture
+                .route_in_operator_vault_rewards_for_test_ncn(&test_ncn)
+                .await?;
+        }
+
+        // 8. Fetch and verify the consensus_result account
         {
             let epoch = fixture.clock().await.epoch;
             let consensus_result = ncn_program_client
@@ -316,7 +329,7 @@ mod tests {
             );
         }
 
-        // 8. Close epoch accounts but keep consensus result
+        // 9. Close epoch accounts but keep consensus result
         let epoch_before_closing_account = fixture.clock().await.epoch;
         fixture.close_epoch_accounts_for_test_ncn(&test_ncn).await?;
 
